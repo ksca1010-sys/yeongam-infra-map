@@ -4,6 +4,261 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>영암읍 청년 인프라 지도</title>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>영암읍 청년 인프라 지도</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#f6f5f1;--panel:#ffffff;--ink:#1d2320;--sub:#66706a;--line:#dedcd3;--accent:#1f6f54;
+--c-food:#d9531e;--c-med:#1f8a5b;--c-cul:#2b6cb0;--c-life:#5b7a84;--c-stay:#7b4fa0;--c-pub:#3a3f44;--c-cafe:#a0701f;--c-fun:#c2306b;
+--font:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#141815;--panel:#1c211e;--ink:#eceee9;--sub:#9aa39d;--line:#2d3430;--accent:#4fc08f;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px}
+#app{display:grid;grid-template-columns:380px 1fr;height:100%}
+#side{display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line)}
+header{padding:16px 16px 10px}
+h1{font-size:18px;margin:0 0 2px;font-weight:700}
+.sub{color:var(--sub);font-size:12px}
+.tools{padding:0 16px 10px;display:flex;flex-direction:column;gap:8px}
+input[type=search]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--ink);padding:5px 10px;border-radius:99px;font:inherit;font-size:12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip[aria-pressed=false]{opacity:.4}
+.chip:focus-visible,button:focus-visible,.row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#status{padding:8px 16px;font-size:12px;color:var(--sub);border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center}
+#list{overflow:auto;flex:1;min-height:0}
+.row{display:grid;grid-template-columns:10px 1fr;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:hover,.row.sel{background:var(--bg)}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:5px}
+.nm{font-weight:500}.nm small{color:var(--sub);font-weight:400;margin-left:6px}
+.mn{color:var(--sub);font-size:12px;margin-top:2px}
+.pend{font-size:11px;color:var(--sub)}
+#mapwrap{position:relative;min-height:0}
+#map{position:absolute;inset:0}
+#detail{position:absolute;left:12px;bottom:12px;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+#detail h2{margin:0 0 4px;font-size:16px}
+#detail dl{margin:8px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}
+#detail dt{color:var(--sub)}#detail dd{margin:0;overflow-wrap:anywhere}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);color:var(--sub);margin-left:6px}
+.x{position:absolute;right:8px;top:6px;border:0;background:none;color:var(--sub);font-size:18px;cursor:pointer}
+button.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer}
+#banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:10;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:12px;max-width:90%}
+.pin{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.pin b{transform:rotate(45deg);color:#fff;font-size:11px;font-weight:700}
+@media (max-width:760px){
+ #app{grid-template-columns:1fr;grid-template-rows:55% 45%}
+ #mapwrap{order:-1}#side{border-right:0;border-top:1px solid var(--line)}
+ #detail{right:12px;max-width:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <aside id="side">
+  <header><h1>영암읍 청년 인프라 지도</h1><div class="sub">먹거리·의료·문화여가·생활편의 <span id="total"></span>곳</div></header>
+  <div class="tools">
+   <input id="q" type="search" placeholder="상호·메뉴·진료과목 검색" aria-label="검색">
+   <div class="chips" id="chips"></div>
+  </div>
+  <div id="status"><span id="stat">좌표 찾는 중…</span><button class="btn" id="exp">좌표 복사(CSV)</button></div>
+  <div id="list"></div>
+ </aside>
+ <main id="mapwrap"><div id="map"></div><div id="banner" hidden></div><div id="detail" hidden></div></main>
+</div>
+<script>
+const KAKAO_JS_KEY="912b769dba99f0884da2468d95938b8b";
+const CENTER=[34.8004,126.6968];
+const BASE="전남광주통합특별시 영암군 영암읍 ";
+const CATS={F:"먹거리",M:"의료",C:"문화·여가",L:"생활편의",S:"숙박",P:"공공기관",K:"카페·디저트",E:"오락"};
+const SRC=[
+["영암군청 '영암 대표 음식점 100선' (yeongam.go.kr/home/tour/food)","공식(지자체)"],
+["다이닝코드 (diningcode.com)","민간정보(확인필요)"],
+["인포소리 (infosori.com)","민간정보(확인필요)"],
+["영암군보건소 의료기관 현황 (yeongam.go.kr/home/health/medical_agency) · 진료시간: nowdoc.co.kr","공식(지자체)"],
+["영암군보건소 의원 현황(갱신 2025-08-26)","공식(지자체)"],
+["영암군보건소 한의원 현황(갱신 2025-08-26)","공식(지자체)"],
+["영암군보건소 치과의원 현황(갱신 2024-01-30)","공식(지자체)"],
+["영암군보건소 약국 현황(갱신 2026-01-19)","공식(지자체)"],
+["영암군보건소 (yeongam.go.kr/home/health)","공식(지자체)"],
+["영암군보건소 안전상비의약품 판매업소(갱신 2025-08-26)","공식(지자체)"],
+["뉴스1 보도(fnnews.com, 2023-01-07)","민간정보(확인필요)"],
+["KOREA TRIP TIPS (한국관광공사 공공데이터 기반, 갱신 2026-06-30)","공공데이터(2차 사이트)"],
+["유가크루 (yugacrew.com)","민간정보(확인필요)"],
+["KOREA TRIP TIPS · devcomma","민간정보(확인필요)"],
+["위키백과","민간정보(확인필요)"],
+["KOREA TRIP TIPS (한국관광공사 공공데이터 기반)","공공데이터(2차 사이트)"],
+["영암군청 누리집 (yeongam.go.kr)","공식(지자체)"],
+["카카오맵 장소검색(2026-11-09 조회)","민간정보(확인필요)"]
+];
+const N1="진료과목·시간은 외부 병원정보 사이트/상호 기준 — 확인 필요";
+const R=[
+["F","한식","영암기찬메밀","메밀국수, 국밥","영암로 1588 2층 (기찬장터)","061-473-2400","","",0],
+["F","한식","안채얼큰이칼국수","샤브샤브, 칼국수","남문로 54","0507-1335-3147","","",0],
+["F","한식","화목식당","삼겹살, 제육볶음","중앙로 39-1","061-471-2456","","",0],
+["F","한식","금호관","한정식, 돌솥비빔밥","군청로 1-6","061-471-1232","","",0],
+["F","일식/횟집","국일관횟집","회, 매운탕","열무정로 29 (국일관)","061-471-9192","","",0],
+["F","한식","월당","라면, 돈까스","열무정로 10","010-6405-3105","","",0],
+["F","한식","전주정식당","짱뚱어탕, 튀김","서문안길 20","061-473-3484","","",0],
+["F","한식","이가숯불화로구이","삼겹살, 갈비 구이","서남역로 8","061-473-3138","","",0],
+["F","한식","8남매 막둥이네","닭갈비, 주물럭, 청국장","열무정로 20","061-472-5800","","",0],
+["F","한식","한국관","한정식, 병어찜, 백반","열무정로 22","061-471-0779","","",0],
+["F","한식","영빈관","육낙, 낙지초무침, 육회비빔밥","웃시암길 8","061-471-0779","","게재된 전화번호가 한국관과 동일 — 확인 필요",0],
+["F","한식","영암양푼이식당","동태탕, 아구찜","낭주로 281","061-473-0243","","",0],
+["F","한식","어바우코다리찜","코다리찜","탑동길 29-3","061-471-9665","","",0],
+["F","한식","우정회관","구이, 갈비탕, 비빔밥","낭주로 79","061-473-5400","","",0],
+["F","한식","영암축협한우프라자","비빔밥, 갈비탕, 구이","월출로 6","061-470-1544","","",0],
+["F","한식","미락가든","꼬막정식","교동로 22","061-473-4013","","",0],
+["F","한식","매력한우기찬랜드명품관","구이, 갈비탕, 불백","기찬랜드로 17","061-473-7788","","",0],
+["F","한식","월출산힘찬장어","장어구이","영암로 1359-12","061-472-9422","","",0],
+["F","한식","철판요리전문점","닭·오리 코스요리, 더덕정식","회의촌길 14-15","061-471-1030","","",0],
+["F","한식","옛터가든","청국장, 손두부","천황사로 357-2","061-471-9409","","",0],
+["F","한식","월출산 산장식당","닭코스, 월출밥상","천황사로 280-28 (산장휴게소)","0507-1441-4900","","",0],
+["F","한식","기찬민물장어","장어구이","천황사로 274","061-473-3221","","",0],
+["F","한식","장어마을","장어구이, 장어탕","천황사로 292","061-417-4226","","",0],
+["F","한식","월출산 민물장어","장어구이","천황사로 279","061-472-4466","","",0],
+["F","한식","궁전본가","백반, 돌솥밥","낭주로 206","0507-1419-7501","","",0],
+["F","한식","기찬밥상","한식뷔페, 로컬푸드, 착한가격","잠곡동길 81 (영암버스터미널 맞은편 고령자복지주택 1층)","0507-1482-1350","","",0],
+["F","한식","동락","갈낙탕, 낙지볶음, 연포탕","서문로 10","0507-1362-2893","매달 2·4번째 화요일 정기휴무","",0],
+["F","한식","바다향","해물요리, 생선요리, 아구찜","열무정로 8","061-471-4646","","",0],
+["F","한식","월출산산초갈비","양념갈비, 생갈비살, 불백","영암로 1392","061-471-2800","","",0],
+["F","한식","신토불이감자탕","묵은지감자탕, 뼈해장국","중앙로 17-1","061-471-5118","22:00 영업종료","",0],
+["F","한식","영암맛집","전복갈낙탕, 낙지요리, 육낙비빔밥","성밖로 42","061-472-9079","","",0],
+["F","한식","조미화곱창","곱창전골, 막창구이, 국밥","낭주로 82","061-472-3392","","",0],
+["F","한식","하눌타리","닭볶음탕, 능이삼계탕, 오리탕, 짱뚱어탕, 한방촌닭코스","예향로 1316 (월출산휴게소)","061-471-1104","","",0],
+["F","양식","해피맘돈가스","돈까스","기찬랜드로 41","0507-1332-1849","","",0],
+["F","한식","대양회관(대양가든)","한정식, 오리탕, 백반","영암로 1372","061-473-6565 / 061-473-8881","","",0],
+["F","양식(돈까스)","동명카츠 영암점","돈까스, 함박스테이크, 제육덮밥","중앙로 31","","","지번 동무리 141-2. 전화 미확인. 메뉴는 이용자 리뷰 기준",1],
+["F","한식(고기)","현대식육식당","삼겹살","오일시장길 15-1 1층","061-473-2506","07:00~20:00","지번 동무리 96-3",1],
+["F","닭/오리(통닭)","옛날통닭","통닭","열무정로 5","061-473-8292","","영업시간 미확인. 출처 페이지에 폐업신고·정보수정 제안 링크 있음 — 현황 확인 필요",1],
+["F","닭/오리(치킨)","노랑통닭 영암읍점","치킨","남문로 8","061-472-9272","","일반음식점, 운영중(출처 갱신 2026-06-16)",2],
+["F","패스트푸드(치킨)","BHC 영암중앙점","치킨","(도로명 확인 필요)","","","도로명주소·전화 미확인 (노랑통닭 인근 84m로 소개됨)",2],
+["M","병원","영암한국병원","정형외과, 내과, 안과, 가정의학과, 외과, 신경과, 재활의학과 등 (24시간 응급실 운영)","오리정길 8","061-470-7100","평일 08:30~17:30 / 토 08:30~13:00 / 일 휴진 (점심 12:30~13:30)","영업시간은 외부 병원정보 사이트 기준 — 방문 전 확인",3],
+["M","의원","김승관내과의원","내과, 소아청소년과","중앙로 13","061-473-2118","08:30~17:00 (점심 12:00~13:30)",N1,4],
+["M","의원","영암내과의원","내과","동문안1길 7-8","061-472-0055","","",4],
+["M","의원","월출기찬내과의원","내과, 소아청소년과, 이비인후과, 피부과, 비뇨의학과","동문로 8","061-471-7555","",N1,4],
+["M","의원","제일의원","(진료과목 미확인)","낭주로 173","061-472-3470","",N1,4],
+["M","의원","신세계신경외과의원","신경외과","남문로 62-1","061-813-0123","","",4],
+["M","의원","참사랑의원","(진료과목 미확인)","남문로 63","061-473-2220","",N1,4],
+["M","의원","하나안과의원","안과","동문로 5","061-471-2007","08:30~17:00 (점심 12:00~13:30)",N1,4],
+["M","의원","서울정형외과의원","정형외과","중앙로 66","061-473-2000","","",4],
+["M","한의원","기찬한의원","한방진료","남문밖길 1","061-471-9413","","",5],
+["M","한의원","원광한의원","한방진료","중앙로 65-1","061-473-2263 / 061-473-3333","","",5],
+["M","한의원","해달한의원","한방진료","남문로 63","061-471-5975","","",5],
+["M","치과","박종희치과의원","치과","중앙로 74","061-473-2240","","",6],
+["M","치과","성광치과의원","치과","중앙로 56","061-473-6677","","",6],
+["M","치과","영암연합치과의원","치과","중앙로 34","061-473-2875","","",6],
+["M","치과","최용진치과의원","치과","중앙로 37","061-471-2875","","",6],
+["M","약국","으뜸약국","약국","낭주로 173","061-471-7684","","",7],
+["M","약국","건강약국","약국","동문로 5","061-471-9975","","",7],
+["M","약국","푸른약국","약국","동문로 8","061-471-7070","연중무휴 08:00~23:00","",7],
+["M","약국","부부약국","약국","오리정길 2","061-472-5555","","",7],
+["M","약국","영암현대약국","약국","중앙로 11","061-472-3264","","",7],
+["M","약국","정신약국","약국","중앙로 25","061-473-2171","","",7],
+["M","약국","조은약국","약국","중앙로 34","061-472-0144","","",7],
+["M","약국","영암종로약국","약국","중앙로 42-2","061-471-7005","","",7],
+["M","약국","서울약국","약국","중앙로 68","061-473-7575","","",7],
+["M","보건소","영암군보건소","일반진료, 예방접종, 치매안심센터, 정신건강복지센터 등","오리정길 39","061-470-6525","","당직의료기관 문의 061-470-6550",8],
+["L","편의점(안전상비의약품 판매)","씨유 영암시영점","편의점","중앙로 33-3","061-473-1717","","",9],
+["L","편의점(안전상비의약품 판매)","씨유 영암로드점","편의점","예향로 1691","061-471-0408","","",9],
+["L","편의점(안전상비의약품 판매)","GS25 영암중앙점","편의점","남문로 1","061-473-2610","","",9],
+["C","작은영화관","기찬시네마","2개 상영관 93석(1관 58석·2관 35석), 2D·3D 상영","(도로명 확인 필요)","","","영암읍 소재(2022-12 개관). 도로명주소·전화·상영시간 확인 필요",10],
+["C","문화시설","영암문화원","도서관·전시실·공연장·관광센터, 문화학교(풍물·서예·노래교실 등)","교동로 55","061-473-2632","평일 08:30~17:30 / 토·일·공휴일 휴무","",11],
+["C","박물관","영암곤충박물관","곤충 전시·체험","기찬랜드로 41","061-461-4300","월요일 휴관","입장료 28개월 이상 8,000원(출처 기준) — 변동 가능",12],
+["C","공원·물놀이장","월출산 기찬랜드","여름철 물놀이장","기찬랜드로 19-3","","여름철 한정 운영","주소는 출처 목록 기준. 공중화장실 데이터상 기찬랜드로 19-10 — 확인 필요",12],
+["C","기타문화시설","가야금산조기념관","가야금산조 기념·전시","기찬랜드로 19-10","","","주소는 공중화장실 목록(devcomma) 기준 — 확인 필요",13],
+["C","체육시설","영암종합스포츠타운","보조경기장, 야구장 등","여운재로 21","","","지번 역리 135-1",14],
+["S","한옥 독채 숙소","기찬빌리지","한옥 객실 6, 잔디광장·수영장, 음식점·카페·노래방 등 부대시설","기찬랜드로 41","1899-3066","체크인 15:00 / 체크아웃 11:00","예약: 네이버예약",15],
+["P","군청","영암군청","","군청로 1","061-470-2114","","",16]
+];
+const NEWROWS="K|커피전문점|카페달품|카페|중앙로 33|010-5897-9666|34.799333|126.697300\nK|카페|홍콩|카페|중앙로 45||34.800384|126.698227\nK|커피전문점(더벤티)|더벤티 전남영암점|커피·음료|군청로 2-30|070-8648-2232|34.799363|126.695977\nK|커피전문점(메가MGC)|메가MGC커피 영암군청점|커피·음료|중앙로 36|061-471-2226|34.799377|126.697764\nK|카페|원앤식스|카페|중앙로 53-1||34.800814|126.698622\nK|커피전문점(이디야)|이디야커피 영암점|커피·음료|동문안1길 7-6|061-471-2022|34.800031|126.698708\nK|카페|시암|카페|웃시암길 7||34.801623|126.698258\nK|카페|벨라비타|카페|서남역로 17||34.799481|126.694941\nK|커피전문점|세자매이야기|커피·음료|읍성로 31||34.800513|126.699822\nK|카페|카페은가비|카페|열무정로 28||34.798774|126.700030\nK|커피전문점(텐퍼센트)|텐퍼센트커피 영암1호점|커피·음료|오리정길 10|061-813-3100|34.794486|126.701604\nK|카페|다온카페|카페|오리정길 37||34.794717|126.703868\nK|카페|낭주로커피|카페|낭주로 237-1|0507-1411-1511|34.808974|126.699003\nK|카페|대동1977|카페|교동로 17|061-471-8666|34.795420|126.685913\nK|카페|카페까망콩|카페|기찬랜드로 41-7|0507-1400-9013|34.791282|126.685838\nK|카페|메종41카페|카페|기찬랜드로 41||34.791219|126.684816\nK|카페|용흥356|카페|천황사로 81|010-9394-1480|34.791004|126.709357\nK|카페|새실|카페|천황사로 99|010-9670-9710|34.790506|126.710982\nK|카페|별산책카페|카페|탑동길 58-35||34.784214|126.718314\nK|카페|숲속의산새둥지|카페|천황사로 280-46|0507-1411-2448|34.775459|126.721380\nK|스터디카페|열공스터디 카페|스터디카페·스터디룸|열무정로 20||34.798716|126.699010\nK|제과·베이커리|파리바게뜨 전남영암점|빵·디저트|중앙로 41|061-473-8208|34.799891|126.697855\nK|제과·베이커리|이앨베이커리|빵·디저트|오일시장길 6-2||34.800661|126.699414\nK|제과·베이커리|꽈백최선생 영암점|빵·디저트|동문로 8|061-473-1300|34.796949|126.702484\nK|제과·베이커리|브래드칸베이커리앤카페|빵·디저트, 카페|월출로 6|061-473-0971|34.794681|126.686052\nE|코인노래방|K팝코인노래연습장|코인노래방|열무정로 6||34.798857|126.697655\nE|노래연습장|스피드노래연습장|노래연습장|중앙로 14|061-473-0813|34.797839|126.695924\nE|당구장|오거리당구클럽|당구·포켓볼|중앙로 31||34.799221|126.697255\nE|당구장|당구일번지|당구·포켓볼|열무정로 5|061-471-7977|34.798965|126.697626\nE|당구장|스피드당구클럽|당구·포켓볼|중앙로 14|061-473-7333|34.797895|126.695935\nE|스크린골프|골프존파크 영암골프점|스크린골프|오리정길 26|061-471-0033|34.794029|126.703323\nE|키즈카페|점프노리스포츠키즈카페 영암점|키즈카페(실내놀이)|동문로 8|061-473-5333|34.796580|126.702781\nC|국공립도서관|영암도서관|도서관|교동로 89-5|061-470-6801|34.798130|126.693675\nC|국공립도서관|전남광주통합특별시교육청영암도서관|도서관|서남역로 27-11|061-473-0692|34.799988|126.694206\nC|작은도서관|신나는작은도서관|도서관|서남역로 70-12||34.802997|126.698111\nC|작은도서관|영암학작은도서관|도서관|교동로 55|061-473-2632|34.796980|126.691162\nC|작은도서관|기찬작은도서관|도서관|기찬랜드로 52||34.790740|126.684050\nC|작은도서관|한마음문고|도서관|성밖로 18|061-472-0892|34.795540|126.696434\nL|서점|동아서점|서점|중앙로 32-1|061-473-2117|34.799139|126.697443\nL|서점|영암서점|서점(출판·정기간행물)|중앙로 70|061-473-3990|34.802042|126.699357\nL|셀프빨래방|크린토피아 코인워시365 전남영암점|셀프빨래방|동문안길 19||34.798421|126.699020\nL|목욕탕·사우나|서울사우나|사우나|중앙로 62-2|061-471-2000|34.801511|126.699384\nL|하나로마트|영암농협 하나로마트 본점|대형슈퍼|낭주로 132|061-473-3889|34.800501|126.702500\nL|하나로마트|영암축협 하나로마트|대형슈퍼|월출로 6|061-470-1540|34.794884|126.686004\nL|로컬푸드직매장|영암농협 로컬푸드직매장 기찬장터|로컬푸드|영암로 1588|061-473-2264|34.795749|126.703413\nL|슈퍼마켓|에이마트|슈퍼마켓|중앙로 73||34.802531|126.699136\nL|슈퍼마켓|제일마트|슈퍼마켓|낭주로 173|061-471-5776|34.803330|126.700313\nL|슈퍼마켓|후레쉬마트|슈퍼마켓|중앙로 23|061-471-5601|34.798663|126.696663\nL|생활용품점|생활용품할인마트|생활용품|오일시장길 2-1|061-473-1012|34.800564|126.699112\nF|분식|둘리분식|분식|서문로 19-2|061-472-8981|34.799112|126.696965\nF|분식|우아김밥|김밥, 분식|중앙로 51-16|010-5623-7773|34.800839|126.698399\nF|떡볶이|신전떡볶이 영암점|떡볶이|중앙로 30|061-471-8844|34.799065|126.697357\nF|떡볶이|땅스떡볶이 영암읍점|떡볶이|남문로 6|061-472-8599|34.798635|126.697199\nF|분식|소문난만두|만두, 분식|중앙로 20|061-473-7484|34.798321|126.696620\nF|분식|행복분식|분식|남문로 62||34.796337|126.702056\nF|호프·요리주점|1도씨맥주 영암군청점|호프·주점|중앙로 22-1||34.798468|126.696789\nF|호프·요리주점|우리술과힐링|호프·주점|중앙로 58-2||34.800918|126.699089\nF|호프·요리주점|스타비어|호프·주점|열무정로 27-28||34.800151|126.699821\nF|호프·요리주점|대신소주방|호프·주점|동문로 40-2||34.798931|126.701330";
+NEWROWS.split("\n").forEach(function(l){var p=l.split("|");R.push([p[0],p[1],p[2],p[3],p[4],p[5],"","카카오맵 검색 결과 — 현황 확인 필요",17,+p[6],+p[7]])});
+const DATA=R.map(function(r,i){return {id:i+1,cat:CATS[r[0]],kind:r[1],name:r[2],menu:r[3],road:r[4],addr:BASE+r[4],tel:r[5],hours:r[6],note:r[7],src:SRC[r[8]][0],grade:SRC[r[8]][1],lat:r[9],lng:r[10]};});
+const COLORS={"먹거리":"--c-food","의료":"--c-med","문화·여가":"--c-cul","생활편의":"--c-life","숙박":"--c-stay","공공기관":"--c-pub","카페·디저트":"--c-cafe","오락":"--c-fun"};
+const cv=function(n){return getComputedStyle(document.documentElement).getPropertyValue(COLORS[n]).trim()||"#555"};
+const CK="yeongam_coords_v1";
+let cache={};try{cache=JSON.parse(localStorage.getItem(CK)||"{}")}catch(e){}
+const save=function(){try{localStorage.setItem(CK,JSON.stringify(cache))}catch(e){}};
+DATA.forEach(function(d){if(d.lat&&d.lng&&!(cache[d.id]&&cache[d.id].ok))cache[d.id]={lat:d.lat,lng:d.lng,ok:1}});
+const state={on:new Set(Object.keys(COLORS)),q:"",sel:null};
+const $=function(id){return document.getElementById(id)};
+const cats=Array.from(new Set(DATA.map(function(d){return d.cat})));
+$("total").textContent=DATA.length;
+function cleanAddr(a){return a.replace("전남광주통합특별시","전라남도").replace(/\s*\(.*?\)/g,"").replace(/\s+\d+층.*$/,"").replace(/\s+지하.*$/,"").trim()}
+const esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+let M;
+function initKakao(){
+  const kakao=window.kakao,map=new kakao.maps.Map($("map"),{center:new kakao.maps.LatLng(CENTER[0],CENTER[1]),level:5});
+  const gc=new kakao.maps.services.Geocoder(),ps=new kakao.maps.services.Places();
+  const mk={};
+  const addr=function(a){return new Promise(function(r){gc.addressSearch(a,function(res,s){r(s==="OK"&&res[0]?{lat:+res[0].y,lng:+res[0].x}:null)})})};
+  const kw=function(q){return new Promise(function(r){ps.keywordSearch(q,function(res,s){r(s==="OK"&&res[0]?{lat:+res[0].y,lng:+res[0].x}:null)},{location:new kakao.maps.LatLng(CENTER[0],CENTER[1]),radius:4000})})};
+  M={
+    mark:function(d,pos){const el=document.createElement("div");el.innerHTML='<div class="pin" style="background:'+cv(d.cat)+'"><b>'+d.cat[0]+'</b></div>';const p=el.firstChild;p.onclick=function(){select(d.id,true)};
+      const o=new kakao.maps.CustomOverlay({position:new kakao.maps.LatLng(pos.lat,pos.lng),content:p,yAnchor:1.1,map:map});mk[d.id]={o:o,pos:pos}},
+    show:function(d,v){const m=mk[d.id];if(m)m.o.setMap(v?map:null)},
+    focus:function(d){const m=mk[d.id];if(m){map.setLevel(3);map.panTo(new kakao.maps.LatLng(m.pos.lat,m.pos.lng))}},
+    fit:function(){const b=new kakao.maps.LatLngBounds();let n=0;Object.values(mk).forEach(function(m){b.extend(new kakao.maps.LatLng(m.pos.lat,m.pos.lng));n++});if(n)map.setBounds(b)},
+    geocode:async function(d){
+      if(d.road[0]==="(")return await kw("영암 "+d.name);
+      return (await addr(cleanAddr(d.addr)))||(await addr(cleanAddr(d.addr).replace(/\s+\d+(-\d+)?$/,"")))||(await kw("영암 "+d.name));
+    }
+  };
+}
+function loadScript(src){return new Promise(function(ok,no){const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function match(d){
+  if(!state.on.has(d.cat))return false;
+  const q=state.q.trim().toLowerCase();if(!q)return true;
+  return [d.name,d.menu,d.kind,d.cat].join(" ").toLowerCase().indexOf(q)>=0;
+}
+function renderChips(){
+  $("chips").innerHTML=cats.map(function(c){return '<button class="chip" data-c="'+c+'" aria-pressed="'+state.on.has(c)+'"><i style="background:'+cv(c)+'"></i>'+c+' '+DATA.filter(function(d){return d.cat===c}).length+'</button>'}).join("");
+  $("chips").querySelectorAll(".chip").forEach(function(b){b.onclick=function(){const c=b.dataset.c;state.on.has(c)?state.on.delete(c):state.on.add(c);refresh()}});
+}
+function renderList(){
+  const rows=DATA.filter(match);
+  $("list").innerHTML=rows.map(function(d){return '<div class="row'+(state.sel===d.id?" sel":"")+'" tabindex="0" data-id="'+d.id+'"><span class="dot" style="background:'+cv(d.cat)+'"></span><div><div class="nm">'+esc(d.name)+'<small>'+esc(d.kind)+'</small></div><div class="mn">'+esc(d.menu||"")+'</div>'+((cache[d.id]&&cache[d.id].ok)?"":'<div class="pend">위치 확인 중/미확인</div>')+'</div></div>'}).join("")||'<div class="row"><div class="mn">검색 결과가 없습니다.</div></div>';
+  $("list").querySelectorAll(".row[data-id]").forEach(function(r){r.onclick=function(){select(+r.dataset.id,true)};r.onkeydown=function(e){if(e.key==="Enter")select(+r.dataset.id,true)}});
+}
+function refresh(){renderChips();renderList();if(M)DATA.forEach(function(d){M.show(d,match(d))})}
+function select(id,focus){
+  state.sel=id;const d=DATA.find(function(x){return x.id===id});renderList();
+  const fields=[["주소",d.addr],["전화",d.tel],["영업",d.hours],["출처",d.src],["확인",d.grade],["비고",d.note]].filter(function(f){return f[1]});
+  $("detail").hidden=false;
+  $("detail").innerHTML='<button class="x" aria-label="닫기" onclick="document.getElementById(\'detail\').hidden=true">×</button><h2>'+esc(d.name)+'<span class="badge" style="color:'+cv(d.cat)+'">'+d.cat+' · '+esc(d.kind)+'</span></h2>'+(d.menu?'<div>'+esc(d.menu)+'</div>':'')+'<dl>'+fields.map(function(f){return '<dt>'+f[0]+'</dt><dd>'+esc(f[1])+'</dd>'}).join("")+'</dl>';
+  if(focus&&M)M.focus(d);
+}
+$("q").oninput=function(e){state.q=e.target.value;refresh()};
+$("exp").onclick=async function(){
+  const t="번호,상호,위도,경도\n"+DATA.filter(function(d){return cache[d.id]&&cache[d.id].ok}).map(function(d){return d.id+","+d.name+","+cache[d.id].lat+","+cache[d.id].lng}).join("\n");
+  try{await navigator.clipboard.writeText(t);$("exp").textContent="복사됨"}catch(e){$("stat").textContent="복사 실패: 콘솔에서 확인";console.log(t)}
+  setTimeout(function(){$("exp").textContent="좌표 복사(CSV)"},1500);
+};
+async function start(){
+  renderChips();renderList();
+  try{
+    await loadScript("https://dapi.kakao.com/v2/maps/sdk.js?appkey="+KAKAO_JS_KEY+"&libraries=services&autoload=false");
+    await new Promise(function(r){kakao.maps.load(r)});initKakao();
+  }catch(e){$("banner").hidden=false;$("banner").textContent="지도를 불러오지 못했습니다. 카카오 키와 도메인 등록을 확인하세요.";return}
+  let done=0,fail=0;
+  const upd=function(){$("stat").textContent="핀 "+done+"곳 표시 · 미확인 "+fail+"곳 / 전체 "+DATA.length+"곳"};
+  for(const d of DATA){
+    let pos=cache[d.id];
+    if(!(pos&&pos.ok)){try{pos=await M.geocode(d)}catch(e){pos=null}if(pos){pos.ok=1;cache[d.id]=pos;save()}}
+    if(pos&&pos.ok){M.mark(d,pos);M.show(d,match(d));done++}else fail++;
+    upd();
+  }
+  M.fit();renderList();
+}
+start();
+</script>
+</body>
+</html>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
 :root{--bg:#f6f5f1;--panel:#ffffff;--ink:#1d2320;--sub:#66706a;--line:#dedcd3;--accent:#1f6f54;

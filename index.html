@@ -69,7 +69,8 @@ button.btn{border:1px solid var(--line);background:var(--bg);color:var(--ink);bo
     <div class="btns"><button class="btn" id="incAll">보이는 목록 전체 포함</button><button class="btn" id="excAll">보이는 목록 전체 제외</button></div>
     <label class="opt"><input type="checkbox" id="hideOff" checked> 제외한 업소는 지도에서 숨기기</label>
     <label class="opt"><input type="checkbox" id="showNum"> 핀에 종이지도 번호 표시</label>
-    <div class="btns"><button class="btn" id="csvDl">선택 목록 CSV 받기</button><button class="btn" id="csvCp">선택 목록 복사</button></div></div>
+    <div class="btns"><button class="btn" id="csvDl">선택 목록 CSV 받기</button><button class="btn" id="csvCp">선택 목록 복사</button></div>
+    <div class="btns"><button class="btn" id="selSave">선택 저장(파일)</button><button class="btn" id="selLoad">선택 불러오기</button><input type="file" id="selFile" accept=".json,application/json" hidden></div></div>
   </div>
   <div id="status"><span id="stat">좌표 찾는 중…</span><button class="btn" id="exp">좌표 복사(CSV)</button></div>
   <div id="list"></div>
@@ -250,6 +251,9 @@ function select(id,focus){
   $("detail").innerHTML='<button class="x" aria-label="닫기" onclick="document.getElementById(\'detail\').hidden=true">×</button><h2>'+esc(d.name)+'<span class="badge" style="color:'+cv(d.cat)+'">'+d.cat+' · '+esc(d.kind)+'</span></h2>'+(d.menu?'<div>'+esc(d.menu)+'</div>':'')+'<dl>'+fields.map(function(f){return '<dt>'+f[0]+'</dt><dd>'+esc(f[1])+'</dd>'}).join("")+'</dl>';
   if(focus&&M)M.focus(d);
 }
+$("selSave").onclick=function(){const ex=DATA.filter(function(d){return exc.has(d.id)}).map(function(d){return [d.id,d.name]});const o={app:"yeongam-paper-map",saved:new Date().toISOString(),excluded:ex};const b=new Blob([JSON.stringify(o)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="영암읍_종이지도_선택_"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();$("stat").textContent="선택 저장: 제외 "+ex.length+"곳 파일로 저장"};
+$("selLoad").onclick=function(){$("selFile").click()};
+$("selFile").onchange=function(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=function(){try{const o=JSON.parse(rd.result);const byName={};DATA.forEach(function(d){byName[d.name]=d.id});const next=new Set();let miss=0;(o.excluded||[]).forEach(function(p){const d=DATA.find(function(x){return x.id===p[0]&&x.name===p[1]});if(d)next.add(d.id);else if(byName[p[1]])next.add(byName[p[1]]);else miss++});exc=next;saveX();refresh();$("stat").textContent="선택 불러옴: 제외 "+exc.size+"곳"+(miss?" (찾지 못한 "+miss+"곳)":"")}catch(err){$("stat").textContent="파일을 읽지 못했습니다"}e.target.value=""};rd.readAsText(f)};
 $("incAll").onclick=function(){DATA.filter(match).forEach(function(d){exc.delete(d.id)});saveX();refresh()};
 $("excAll").onclick=function(){DATA.filter(match).forEach(function(d){exc.add(d.id)});saveX();refresh()};
 $("hideOff").onchange=refresh;$("showNum").onchange=refresh;
